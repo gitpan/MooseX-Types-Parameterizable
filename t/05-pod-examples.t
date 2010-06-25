@@ -111,95 +111,144 @@ use Test::More;
 
 }
 
+{
+    package Test::MooseX::Types::Parameterizable::Subtypes;
+
+    use Moose;
+    use MooseX::Types::Parameterizable qw(Parameterizable);
+    use MooseX::Types::Moose qw(HashRef Int);
+    use MooseX::Types -declare=>[qw(Range RangedInt PositiveRangedInt 
+        PositiveInt PositiveRange PositiveRangedInt2 )];
+
+    ## Minor change from docs to avoid additional test dependencies
+    subtype Range,
+        as HashRef[Int],
+        where {
+            my ($range) = @_;
+            return $range->{max} > $range->{min};
+        },
+        message { "Not a Valid range [ $_->{max} not > $_->{min} ] " };
+
+    subtype RangedInt,
+        as Parameterizable[Int, Range],
+        where {
+            my ($value, $range) = @_;
+            return ($value >= $range->{min} &&
+             $value <= $range->{max});
+        };
+        
+    subtype PositiveRangedInt,
+        as RangedInt,
+        where {
+            shift >= 0;              
+        };
+
+    Test::More::ok PositiveRangedInt([{min=>10,max=>100}])->check(50);
+    Test::More::ok !PositiveRangedInt([{min=>50, max=>75}])->check(99);
+
+    eval {
+        Test::More::ok !PositiveRangedInt([{min=>99, max=>10}])->check(10); 
+    }; 
+
+    Test::More::ok $@, 'There was an error';
+    Test::More::like $@, qr(Not a Valid range), 'Correct custom error';
+
+    Test::More::ok PositiveRangedInt([min=>10,max=>100])->check(50);
+    Test::More::ok ! PositiveRangedInt([min=>50, max=>75])->check(99);
+
+    eval {
+        PositiveRangedInt([min=>99, max=>10])->check(10); 
+    }; 
+
+    Test::More::ok $@, 'There was an error';
+    Test::More::like $@, qr(Not a Valid range), 'Correct custom error';
+
+    Test::More::ok !PositiveRangedInt([{min=>-10, max=>75}])->check(-5);
+
+    ## Subtype of Int for positive numbers
+    subtype PositiveInt,
+        as Int,
+        where {
+            my ($value, $range) = @_;
+            return $value >= 0;
+        };
+
+    ## subtype Range to re-parameterize Range with subtypes.  Minor change from
+    ## docs to reduce test dependencies
+
+    subtype PositiveRange,
+      as Range[PositiveInt],
+      message { "[ $_->{max} not > $_->{min} ] is not a positive range " };
+    
+    ## create subtype via reparameterizing
+    subtype PositiveRangedInt2,
+        as RangedInt[PositiveRange];
+
+    Test::More::ok PositiveRangedInt2([{min=>10,max=>100}])->check(50);
+    Test::More::ok !PositiveRangedInt2([{min=>50, max=>75}])->check(99);
+
+    eval {
+        Test::More::ok !PositiveRangedInt2([{min=>99, max=>10}])->check(10); 
+    }; 
+
+    Test::More::ok $@, 'There was an error';
+    Test::More::like $@, qr(not a positive range), 'Correct custom error';
+
+    Test::More::ok !PositiveRangedInt2([{min=>10, max=>75}])->check(-5);
+
+    ## See t/02-types-parameterizable-extended.t for remaining examples tests
+}
+
+{
+    package Test::MooseX::Types::Parameterizable::Coercions;
+
+    use Moose;
+    use MooseX::Types::Parameterizable qw(Parameterizable);
+    use MooseX::Types::Moose qw(HashRef ArrayRef Object Str Int);
+    use MooseX::Types -declare=>[qw(Varchar MySpecialVarchar )];
+
+
+    subtype Varchar,
+      as Parameterizable[Str, Int],
+      where {
+        my($string, $int) = @_;
+        $int >= length($string) ? 1:0;
+      },
+      message { "'$_' is too long"  };
+
+
+    coerce Varchar,
+      from Object,
+      via { "$_"; },  ## stringify the object
+      from ArrayRef,
+      via { join '',@$_ };  ## convert array to string
+
+    subtype MySpecialVarchar,
+      as Varchar;
+
+    coerce MySpecialVarchar,
+      from HashRef,
+      via { join '', keys %$_ };
+
+
+    Test::More::is Varchar([40])->coerce("abc"), 'abc';
+    Test::More::is Varchar([40])->coerce([qw/d e f/]), 'def';
+
+    Test::More::is MySpecialVarchar([40])->coerce("abc"), 'abc';
+    Test::More::is_deeply( MySpecialVarchar([40])->coerce([qw/d e f/]), [qw/d e f/]);
+    Test::More::is MySpecialVarchar([40])->coerce({a=>1, b=>2}), 'ab';
+}
+
+{
+    package Test::MooseX::Types::Parameterizable::Recursion;
+
+    use Moose;
+    use MooseX::Types::Parameterizable qw(Parameterizable);
+    use MooseX::Types::Moose qw(  );
+    use MooseX::Types -declare=>[qw(  )];
+
+    ## To be done when I can think of a use case
+}
 
 done_testing;
-
-
-__END__
-
-use MooseX::Types -declare=>[qw(Set UniqueInt PositiveSet PositiveUniqueInt )];
-
-subtype Set,
-  as class_type("Set::Scalar");
-
-subtype UniqueInt,
-  as Parameterizable[Int, Set],
-  where {
-    my ($int, $set) = @_;
-    !$set->has($int);
-  };
-
-subtype PositiveSet,
-  as Set,
-  where {
-    my ($set) = @_;
-    ! grep { $_ < 0 } $set->members;
-  };
-  
-subtype PositiveUniqueInt,
-  as UniqueInt[PositiveSet];
-
-my $set = Set::Scalar->new(-1,-2,1,2,3);
-my $positive_set = Set::Scalar->new(1,2,3);
-my $negative_set = Set::Scalar->new(-1,-2,-3);
-
-ok Set->check($set),
- 'Is a Set';
-
-ok Set->check($positive_set),
- 'Is a Set';
-
-ok Set->check($negative_set),
- 'Is a Set';
-
-ok !PositiveSet->check($set),
- 'Is Not a Positive Set';
-
-ok PositiveSet->check($positive_set),
- 'Is a Positive Set';
-
-ok !PositiveSet->check($negative_set),
- 'Is Not a Positive Set';
-
-ok UniqueInt([$set])->check(100),
- '100 not in Set';
-
-ok UniqueInt([$positive_set])->check(100),
- '100 not in Set';
-
-ok UniqueInt([$negative_set])->check(100),
- '100 not in Set';
-
-ok UniqueInt([$set])->check(-99),
- '-99 not in Set';
-
-ok UniqueInt([$positive_set])->check(-99),
- '-99 not in Set';
-
-ok UniqueInt([$negative_set])->check(-99),
-  '-99 not in Set';
-
-ok !UniqueInt([$set])->check(2),
- '2 in Set';
-
-ok !UniqueInt([$positive_set])->check(2),
- '2 in Set';
-
-ok UniqueInt([$negative_set])->check(2),
-  '2 not in Set';
-
-
-__END__
-
-ok UniqueInt([$set])->check(100);  ## Okay, 100 isn't in (1,2,3)
-ok UniqueInt([$set])->check(-99);  ## Okay, -99 isn't in (1,2,3)
-ok !UniqueInt([$set])->check(2);  ## Not OK, 2 is in (1,2,3)
-
-ok PositiveUniqueInt([$set])->check(100);  ## Okay, 100 isn't in (1,2,3)
-ok !PositiveUniqueInt([$set])->check(-99);  ## Not OK, -99 not Positive Int
-ok !PositiveUniqueInt([$set])->check(2);  ## Not OK, 2 is in (1,2,3)
-
-my $negative_set = Set::Scalar->new(-1,-2,-3);
-
-ok UniqueInt([$negative_set])->check(100);  ## Throws exception
 

@@ -2,7 +2,7 @@ package MooseX::Types::Parameterizable;
 
 use 5.008;
 
-our $VERSION   = '0.02';
+our $VERSION   = '0.03';
 $VERSION = eval $VERSION;
 
 use Moose::Util::TypeConstraints;
@@ -24,9 +24,7 @@ The follow is example usage.
     use MooseX::Types::Moose qw(Str Int ArrayRef);
     use MooseX::Types -declare=>[qw(Varchar)];
 
-    ## Create a type constraint that is a string but parameterizes an integer
-    ## that is used as a maximum length constraint on that string, similar to
-    ## a SQL Varchar database type.
+Create a type constraint that is similar to SQL Varchar type.
 
     subtype Varchar,
       as Parameterizable[Str,Int],
@@ -35,6 +33,8 @@ The follow is example usage.
         $int >= length($string) ? 1:0;
       },
       message { "'$_' is too long"  };
+
+Coerce an ArrayRef to a string via concatenation.
 
     coerce Varchar,
       from ArrayRef,
@@ -46,19 +46,22 @@ The follow is example usage.
     has 'varchar_five' => (isa=>Varchar[5], is=>'ro', coerce=>1);
     has 'varchar_ten' => (isa=>Varchar[10], is=>'ro');
   
-    ## Object created since attributes are valid
+Object created since attributes are valid
+
     my $object1 = __PACKAGE__->new(
         varchar_five => '1234',
         varchar_ten => '123456789',
     );
 
-    ## Dies with an invalid constraint for 'varchar_five'
+Dies with an invalid constraint for 'varchar_five'
+
     my $object2 = __PACKAGE__->new(
         varchar_five => '12345678',  ## too long!
         varchar_ten => '123456789',
     );
 
-    ## varchar_five coerces as expected
+varchar_five coerces as expected
+
     my $object3 = __PACKAGE__->new(
         varchar_five => [qw/aa bb/],  ## coerces to "aabb"
         varchar_ten => '123456789',
@@ -99,7 +102,7 @@ values for an Int (integer) type constraint:
         };
         
     RangedInt([{min=>10,max=>100}])->check(50); ## OK
-    RangedInt([{min=>50, max=>75}])->check(99); ## Not OK, 99 exceeds max
+    RangedInt([{min=>50, max=>75}])->check(99); ## Not OK, exceeds max
 
 The type parameter must be valid against the type constraint given.  If you pass
 an invalid value this throws a hard Moose exception.  You'll need to capture it
@@ -123,23 +126,23 @@ example above, as a convenience we automatically ref the incoming type
 parameters, so that the above could also be written as:
 
     RangedInt([min=>10,max=>100])->check(50); ## OK
-    RangedInt([min=>50, max=>75])->check(99); ## Not OK, 99 exceeds max
-    RangedInt([min=>99, max=>10])->check(10); ## Exception, not a valid Range!
+    RangedInt([min=>50, max=>75])->check(99); ## Not OK, exceeds max
+    RangedInt([min=>99, max=>10])->check(10); ## Exception, not valid Range
 
 This is the preferred syntax, as it improve readability and adds to the
 conciseness of your type constraint declarations.  An exception wil be thrown if
 your type parameters don't match the required reference type.
 
-Also not that if you 'chain' parameterization results with a method call like:
+Also note that if you 'chain' parameterization results with a method call like:
 
     TypeConstraint([$ob])->method;
     
 You need to have the "(...)" around the ArrayRef in the Type Constraint
-parameters.  This seems to have something to do with the precendent level of
-"->".  Patches or thoughts welcomed.  You only need to do this in the above
-case which I imagine is not a very common case.
+parameters.  You can skip the wrapping parenthesis in the most common cases,
+such as when you use the type constraint in the options section of a L<Moose>
+attribute declaration, or when defining type libraries.
 
-==head2 Subtyping a Parameterizable type constraints
+=head2 Subtyping a Parameterizable type constraints
 
 When subclassing a parameterizable type you must be careful to match either the
 required type parameter type constraint, or if re-parameterizing, the new
@@ -161,7 +164,18 @@ Example subtype with additional constraints:
             shift >= 0;              
         };
         
-Or you could have done the following instead:
+In this case you'd now have a parameterizable type constraint called which
+would work like:
+
+    Test::More::ok PositiveRangedInt([{min=>-10, max=>75}])->check(5);
+    Test::More::ok !PositiveRangedInt([{min=>-10, max=>75}])->check(-5);
+
+Of course the above is somewhat counter-intuitive to the reader, since we have
+defined our 'RangedInt' in such as way as to let you declare negative ranges.
+For the moment each type constraint rule is apply without knowledge of any
+other rule, nor can a rule 'inform' existing rules.  This is a limitation of
+the current system.  However, you could instead do the following:
+
 
     ## Subtype of Int for positive numbers
     subtype PositiveInt,
@@ -179,97 +193,106 @@ Or you could have done the following instead:
     subtype PositiveRangedInt,
         as RangedInt[PositiveRange];
 
+This would constrain values in the same way as the previous type constraint but
+have the bonus that you'd throw a hard exception if you try to use an incorrect
+range:
+
+    Test::More::ok PositiveRangedInt([{min=>10, max=>75}])->check(15); ## OK
+    Test::More::ok !PositiveRangedInt([{min=>-10, max=>75}])->check(-5); ## Dies
+
 Notice how re-parameterizing the parameterizable type 'RangedInt' works slightly
 differently from re-parameterizing 'PositiveRange'  Although it initially takes
 two type constraint values to declare a parameterizable type, should you wish to
-later re-parameterize it, you only use a subtype of the second type parameter
-(the parameterizable type constraint) since the first type constraint sets the parent
-type for the parameterizable type.  In other words, given the example above, a type
-constraint of 'RangedInt' would have a parent of 'Int', not 'Parameterizable' and for
-all intends and uses you could stick it wherever you'd need an Int.
+later re-parameterize it, you only use a subtype of the extra type parameter
+(the parameterizable type constraints) since the first type constraint sets the
+parent type for the parameterizable type.
 
-    subtype NameAge,
-        as Tuple[Str, Int];
-    
-    ## re-parameterized subtypes of NameAge containing a Parameterizable Int    
-    subtype NameBetween18and35Age,
-        as NameAge[
-            Str,
-            PositiveRangedInt[min=>18,max=>35],
-        ];
-
-One caveat is that you can't stick an unparameterized parameterizable type inside a
-structure, such as L<MooseX::Types::Structured> since that would require the
-ability to convert a 'containing' type constraint into a parameterizable type, which
-is a capacity we current don't have.
+In other words, given the example above, a type constraint of 'RangedInt' would
+have a parent of 'Int', not 'Parameterizable' and for all intends and uses you 
+could stick it wherever you'd need an Int.
     
 =head2 Coercions
 
-Parameterizable types have some limited support for coercions.  Several things must
-be kept in mind.  The first is that the coercion targets the type constraint
-which is being made parameterizable, Not the parameterizable type.  So for example if you
-create a Parameterizable type like:
+A type coerction is a rule that allows you to transform one type from one or
+more other types.  Please see L<Moose::Cookbook::Basics::Recipe5> for an example
+of type coercions if you are not familiar with the subject.
 
-    subtype RequiredAgeInYears,
-      as Int;
+L<MooseX::Types::Parameterizable> support type coercions in all the ways you
+would expect.  In addition, it also supports a limited form of type coercion
+inheritance.  Generally speaking, type constraints don't inherit coercions since
+this would rapidly become confusing.  However, since your parameterizable type
+is intended to become parameterized in order to be useful, we support inheriting
+from a 'base' parameterizable type constraint to its 'child' parameterized sub
+types.
 
-    subtype PersonOverAge,
-      as Parameterizable[Person, RequiredAgeInYears]
+For the purposes of this discussion, a parameterizable type is a subtype created
+when you say, "as Parameterizable[..." in your sub type declaration.  For example
+
+    subtype Varchar,
+      as Parameterizable[Str, Int],
       where {
-        my ($person, $required_years_old) = @_;
-        return $person->years_old > $required_years_old;
-      }
+        my($string, $int) = @_;
+        $int >= length($string) ? 1:0;
+      },
+      message { "'$_' is too long"  };
 
-This would validate the following:
-    
-    my $person = Person->new(age=>35);
-    PersonOverAge([18])->check($person);
-    
-You can then apply the following coercion
+This is the </SYNOPSIS> example, which creates a new parameterizable subtype of
+Str which takes a single type parameter which must be an Int.  This Int is used
+to constrain the allowed length of the Str value.
 
-    coerce PersonOverAge,
-      from Dict[age=>int],
-      via {Person->new(%$_)},
-      from Int,
-      via {Person->new(age=>$_)};
-      
-This coercion would then apply to all the following:
+Now, this new sub type, "Varchar", is parameterizable since it can take a type
+parameter.  We can apply some coercions to it:
 
-    PersonOverAge([18])->check(30); ## via the Int coercion
-    PersonOverAge([18])->check({age=>50}); ## via the Dict coercion
+    coerce Varchar,
+      from Object,
+      via { "$_"; },  ## stringify the object
+      from ArrayRef,
+      via { join '',@$_ };  ## convert array to string
 
-However, you are not allowed to place coercions on parameterizable types that have
-had their constraining value filled, nor subtypes of such.  For example:
+This parameterizable subtype, "Varchar" itself is something you'd never use
+directly to constraint a value.  In other words you'd never do something like:
 
-    coerce PersonOverAge[18],
-      from DateTime,
-      via {$_->years};
-      
-That would generate a hard exception.  This is a limitation for now until I can
-devise a smarter way to cache the generated type constraints.  However, I doubt
-it will be a significant limitation, since the general use case is supported.
+    has name => (isa=>Varchar, ...)
 
-Lastly, the constraining value is available in the coercion in much the same way
-it is available to the constraint.
+You are going to do this:
 
-    ## Create a type constraint where a Person must be in the set
-    subtype PersonInSet,
-        as Parameterizable[Person, PersonSet],
-        where {
-            my ($person, $person_set) = @_;
-            $person_set->find($person);
-        }
+    has name => (isa=>Varchar[40], ...)
 
-    coerce PersonInSet,
-        from HashRef,
-        via {
-            my ($hashref, $person_set) = @_;
-            return $person_set->create($hash_ref);
-        };
+Which is actually useful.  However, "Varchar[40]" is a parameterized type, it
+is a subtype of the parameterizable "Varchar" and it inherits coercions from
+its parent.  This may be a bit surprising to L<Moose> developers, but I believe
+this is the actual desired behavior.
+
+You can of course add new coercions to a subtype of a parameterizable type:
+
+    subtype MySpecialVarchar,
+      as Varchar;
+
+    coerce MySpecialVarchar,
+      from ...
+
+In which case this new parameterizable type would NOT inherit coercions from
+it's parent parameterizable type (Varchar).  This is done in keeping with how
+generally speaking L<Moose> type constraints avoid complicated coercion inheritance
+schemes, however I am open to discussion if there are valid use cases.
+
+NOTE: One thing you can't do is add a coercion to an already parameterized type.
+Currently the following would throw a hard error:
+
+    subtype 40CharStr,
+      as Varchar[40];
+
+    coerce 40CharStr, ...  # BANG!
+
+This limitation is enforced since generally we expect coercions on the parent.
+However if good use cases arise we may lift this in the future.
+
+In general we are trying to take a conservative approach that keeps in line with
+how most L<Moose> authors expect type constraints to work.
 
 =head2 Recursion
 
-    TBD - Need more tests.
+    TBD - Needs a use case... Anyone?
 
 =head1 TYPE CONSTRAINTS
 
