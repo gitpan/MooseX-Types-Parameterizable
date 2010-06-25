@@ -76,15 +76,15 @@ has 'constraining_value' => (
 
 This class defines the following methods.
 
-=head2 BUILD
+=head2 new
 
 Do some post build stuff
 
 =cut
 
 ## Right now I add in the parameterizable type coercion until I can merge some Moose
-## changes upstream.  TODO change to BUILD or something
-
+## changes upstream.
+ 
 around 'new' => sub {
     my ($new, $class, @args) = @_;
     my $self = $class->$new(@args);
@@ -95,7 +95,7 @@ around 'new' => sub {
 
 =head2 parameterize (@args)
 
-Given a ref of type constraints, create a structured type.
+Given a ref of type constraints, create a parameterized constraint
     
 =cut
 
@@ -195,6 +195,7 @@ sub parameterize {
                     constraining_value => $args,
                     parent_type_constraint=>$self->parent_type_constraint,
                     constraining_value_type_constraint => $self->constraining_value_type_constraint,
+                    message => $self->message,
                 );
                 
                 ## TODO This is probably going to have to go away (too many things added to the registry)
@@ -320,6 +321,19 @@ modify this method so that we pass along the constraining value to the constrain
 coderef and also throw the correct error message if the constraining value does
 not match it's requirement.
 
+around 'compile_type_constraint' => sub {
+    my ($compile_type_constraint, $self, @args) = @_;
+    
+    if($self->has_type_constraints) {
+        my $type_constraints = $self->type_constraints;
+        my $constraint = $self->generate_constraint_for($type_constraints);
+        $self->_set_constraint($constraint);        
+    }
+
+    return $self->$compile_type_constraint(@args);
+};
+
+
 =cut
 
 around '_compiled_type_constraint' => sub {
@@ -347,36 +361,22 @@ More method modification to support dispatch coerce to a parent.
 
 around 'coerce' => sub {
     my ($coerce, $self, @args) = @_;
-    
     if($self->has_constraining_value) {
         push @args, $self->constraining_value;
-        if(@{$self->coercion->type_coercion_map}) {
-            my $coercion = $self->coercion;
-            my $coerced = $self->$coerce(@args);
-            if(defined $coerced) {
-                return $coerced;
-            } else {
-                my $parent = $self->parent;
-                return $parent->coerce(@args); 
-            }
+    }
+    if(@{$self->coercion->type_coercion_map}) {
+        my $coercion = $self->coercion;
+        my $coerced = $coercion->coerce(@args);
+        if(defined $coerced) {
+            return $coerced;
         } else {
             my $parent = $self->parent;
             return $parent->coerce(@args); 
-        } 
-    }
-    else {
-        return $self->$coerce(@args);
-    }
-    return;
-};
-
-=head2 get_message
-
-Give you a better peek into what's causing the error.
-
-around 'get_message' => sub {
-    my ($get_message, $self, $value) = @_;
-    return $self->$get_message($value);
+        }
+    } else {
+        my $parent = $self->parent;
+        return $parent->coerce(@args); 
+    } 
 };
 
 =head1 SEE ALSO
@@ -396,6 +396,5 @@ it under the same terms as Perl itself.
 
 =cut
 
-1;
-##__PACKAGE__->meta->make_immutable(inline_constructor => 0);
+__PACKAGE__->meta->make_immutable(inline_constructor => 0);
 
