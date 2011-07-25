@@ -1,0 +1,49 @@
+{
+   "abstract" : "Create your own Parameterizable Types.",
+   "author" : [
+      "John Napiorkowski, C<< <jjnapiork@cpan.org> >>, John Napiorkowski <jjnapiork@cpan.org>"
+   ],
+   "dynamic_config" : 0,
+   "generated_by" : "ExtUtils::MakeMaker version 6.58, CPAN::Meta::Converter version 2.110930001",
+   "license" : [
+      "perl_5"
+   ],
+   "meta-spec" : {
+      "url" : "http://search.cpan.org/perldoc?CPAN::Meta::Spec",
+      "version" : "2"
+   },
+   "name" : "MooseX-Types-Parameterizable",
+   "no_index" : {
+      "directory" : [
+         "t",
+         "inc"
+      ]
+   },
+   "prereqs" : {
+      "build" : {
+         "requires" : {
+            "ExtUtils::MakeMaker" : "6.42",
+            "Test::Exception" : "0.29",
+            "Test::More" : "0.94"
+         }
+      },
+      "configure" : {
+         "requires" : {
+            "ExtUtils::MakeMaker" : 0
+         }
+      },
+      "runtime" : {
+         "requires" : {
+            "Data::Dump" : "1.17",
+            "Devel::PartialDump" : "0.13",
+            "Digest::MD5" : "2.39",
+            "Moose" : "1.08",
+            "MooseX::Types" : "0.22",
+            "Scalar::Util" : "1.19",
+            "perl" : "5.008"
+         }
+      }
+   },
+   "release_status" : "stable",
+   "version" : "0.06"
+}

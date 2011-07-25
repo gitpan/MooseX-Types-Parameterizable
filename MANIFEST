@@ -1,4 +1,3 @@
-.gitignore
 Changes
 docs/facets
 docs/type_constraints
@@ -19,6 +18,8 @@ lib/MooseX/Types/Parameterizable.pm
 Makefile.PL
 MANIFEST			This list of files
 META.yml
+MYMETA.json
+MYMETA.yml
 README
 t/00-load.t
 t/01-types-parameterizable.t
@@ -27,3 +28,4 @@ t/03-coercions.t
 t/04-types-parameterizable-parameterized.t
 t/05-pod-examples.t
 t/06-anonymous.t
+t/07-no-message.t
