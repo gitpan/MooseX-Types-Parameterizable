@@ -1,13 +1,12 @@
- 
+#!/usr/bin/env perl
+
 use strict;
-use warnings;
+use warnings FATAL =>'all';
 use inc::Module::Install 1.00;
 
-name 'MooseX-Types-Parameterizable';
 all_from 'lib/MooseX/Types/Parameterizable.pm';
-author 'John Napiorkowski <jjnapiork@cpan.org>';
-repository 'git://github.com/jjn1056/MooseX-Types-Parameterizable.git';
-license 'perl';
+do 'maint/Makefile.PL.include'
+ if $Module::Install::AUTHOR;
 
 requires 'Moose' => '1.08';
 requires 'MooseX::Types' => '0.22';
@@ -18,8 +17,6 @@ requires 'Digest::MD5' => '2.39';
 
 build_requires 'Test::More' => '0.94';
 build_requires 'Test::Exception' => '0.29';
+test_requires 'Test::Most';
 
-auto_install;
-tests_recursive;
 WriteAll;
-

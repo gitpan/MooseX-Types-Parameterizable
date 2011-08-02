@@ -1,19 +1,8 @@
-package MooseX::Types::Parameterizable;
-
-use 5.008;
-
-our $VERSION   = '0.07';
-$VERSION = eval $VERSION;
-
-use Moose::Util::TypeConstraints;
-use MooseX::Meta::TypeConstraint::Parameterizable;
-use MooseX::Types -declare => [qw(Parameterizable)];
-
-=head1 NAME
+# NAME
 
 MooseX::Types::Parameterizable - Create your own Parameterizable Types.
 
-=head1 SYNOPSIS
+# SYNOPSIS
 
 The follow is example usage.
 
@@ -46,6 +35,7 @@ Coerce an ArrayRef to a string via concatenation.
     has 'varchar_five' => (isa=>Varchar[5], is=>'ro', coerce=>1);
     has 'varchar_ten' => (isa=>Varchar[10], is=>'ro');
   
+
 Object created since attributes are valid
 
     my $object1 = __PACKAGE__->new(
@@ -67,20 +57,22 @@ varchar_five coerces as expected
         varchar_ten => '123456789',
     );
  
+
 See t/05-pod-examples.t for runnable versions of all POD code
          
-=head1 DESCRIPTION
 
-A L<MooseX::Types> library for creating parameterizable types.  A parameterizable
+# DESCRIPTION
+
+A [MooseX::Types](http://search.cpan.org/perldoc?MooseX::Types) library for creating parameterizable types.  A parameterizable
 type constraint for all intents and uses is a subclass of a parent type, but 
 adds additional type parameters which are available to constraint callbacks
 (such as inside the 'where' clause of a type constraint definition) or in the 
 coercions you define for a given type constraint.
 
-If you have L<Moose> experience, you probably are familiar with the builtin 
+If you have [Moose](http://search.cpan.org/perldoc?Moose) experience, you probably are familiar with the builtin 
 parameterizable type constraints 'ArrayRef' and 'HashRef'.  This type constraint
 lets you generate your own versions of parameterized constraints that work
-similarly.  See L<Moose::Util::TypeConstraints> for more.
+similarly.  See [Moose::Util::TypeConstraints](http://search.cpan.org/perldoc?Moose::Util::TypeConstraints) for more.
 
 Using this type constraint, you can generate new type constraints that have
 additional runtime advice, such as being able to specify maximum and minimum
@@ -101,6 +93,7 @@ values for an Int (integer) type constraint:
              $value <= $range->{max});
         };
         
+
     RangedInt([{min=>10,max=>100}])->check(50); ## OK
     RangedInt([{min=>50, max=>75}])->check(99); ## Not OK, exceeds max
 
@@ -110,7 +103,7 @@ rather than build a custom type constraint for all similar cases.
 The type parameter must be valid against the 'constrainting' type constraint used
 in the Parameterizable condition.  If you pass an invalid value this throws a
 hard Moose exception.  You'll need to capture it in an eval or related exception
-catching system (see L<TryCatch> or L<Try::Tiny>.)
+catching system (see [TryCatch](http://search.cpan.org/perldoc?TryCatch) or [Try::Tiny](http://search.cpan.org/perldoc?Try::Tiny).)
 
 For example the following would throw a hard error (and not just return false)
 
@@ -131,6 +124,7 @@ above or you need to test the constraining values first, as in:
         RangedInt($range)->check(99);
     }
     
+
 Please note that for ArrayRef or HashRef parameterizable type constraints, as in the
 example above, as a convenience we automatically ref the incoming type
 parameters, so that the above could also be written as:
@@ -146,12 +140,13 @@ Also note that if you 'chain' parameterization results with a method call like:
 
     TypeConstraint([$ob])->method;
     
+
 You need to have the "(...)" around the ArrayRef in the Type Constraint
 parameters.  You can skip the wrapping parenthesis in the most common cases,
-such as when you use the type constraint in the options section of a L<Moose>
+such as when you use the type constraint in the options section of a [Moose](http://search.cpan.org/perldoc?Moose)
 attribute declaration, or when defining type libraries.
 
-=head2 Subtyping a Parameterizable type constraints
+## Subtyping a Parameterizable type constraints
 
 When subclassing a parameterizable type you must be careful to match either the
 required type parameter type constraint, or if re-parameterizing, the new
@@ -173,6 +168,7 @@ Example subtype with additional constraints:
             shift >= 0;              
         };
         
+
 In this case you'd now have a parameterizable type constraint which would
 work like:
 
@@ -184,6 +180,7 @@ defined our 'RangedInt' in such as way as to let you declare negative ranges.
 For the moment each type constraint rule is apply without knowledge of any
 other rule, nor can a rule 'inform' existing rules.  This is a limitation of
 the current system.  However, you could instead do the following:
+
 
 
     ## Subtype of Int for positive numbers
@@ -198,6 +195,7 @@ the current system.  However, you could instead do the following:
     subtype PositiveRange,
         as Range[max=>PositiveInt, min=>PositiveInt];
     
+
     ## create subtype via reparameterizing
     subtype PositiveRangedInt,
         as RangedInt[PositiveRange];
@@ -221,13 +219,14 @@ have a parent of 'Int', not 'Parameterizable' and for all intends and uses you
 could stick it wherever you'd need an Int.  You can't change the parent, even
 to make it a subclass of Int.
     
-=head2 Coercions
+
+## Coercions
 
 A type coercion is a rule that allows you to transform one type from one or
-more other types.  Please see L<Moose::Cookbook::Basics::Recipe5> for an example
+more other types.  Please see [Moose::Cookbook::Basics::Recipe5](http://search.cpan.org/perldoc?Moose::Cookbook::Basics::Recipe5) for an example
 of type coercions if you are not familiar with the subject.
 
-L<MooseX::Types::Parameterizable> supports type coercions in all the ways you
+[MooseX::Types::Parameterizable](http://search.cpan.org/perldoc?MooseX::Types::Parameterizable) supports type coercions in all the ways you
 would expect.  In addition, it also supports a limited form of type coercion
 inheritance.  Generally speaking, type constraints don't inherit coercions since
 this would rapidly become confusing.  However, since your parameterizable type
@@ -247,7 +246,7 @@ example:
       },
       message { "'$_' is too long"  };
 
-This is the L</SYNOPSIS> example, which creates a new parameterizable subtype of
+This is the [SYNOPSIS](#pod_SYNOPSIS) example, which creates a new parameterizable subtype of
 Str which takes a single type parameter which must be an Int.  This Int is used
 to constrain the allowed length of the Str value.
 
@@ -271,7 +270,7 @@ You are going to do this:
 
 Which is actually useful.  However, "Varchar[40]" is a parameterized type, it
 is a subtype of the parameterizable "Varchar" and it inherits coercions from
-its parent.  This may be a bit surprising to L<Moose> developers, but I believe
+its parent.  This may be a bit surprising to [Moose](http://search.cpan.org/perldoc?Moose) developers, but I believe
 this is the actual desired behavior.
 
 You can of course add new coercions to a subtype of a parameterizable type:
@@ -284,7 +283,7 @@ You can of course add new coercions to a subtype of a parameterizable type:
 
 In which case this new parameterizable type would NOT inherit coercions from
 it's parent parameterizable type (Varchar).  This is done in keeping with how
-generally speaking L<Moose> type constraints avoid complicated coercion inheritance
+generally speaking [Moose](http://search.cpan.org/perldoc?Moose) type constraints avoid complicated coercion inheritance
 schemes, however I am open to discussion if there are valid use cases.
 
 NOTE: One thing you can't do is add a coercion to an already parameterized type.
@@ -299,49 +298,35 @@ This limitation is enforced since generally we expect coercions on the parent.
 However if good use cases arise we may lift this in the future.
 
 In general we are trying to take a conservative approach that keeps in line with
-how most L<Moose> authors expect type constraints to work.
+how most [Moose](http://search.cpan.org/perldoc?Moose) authors expect type constraints to work.
 
-=head2 Recursion
+## Recursion
 
     TBD - Needs a use case... Anyone?
 
-=head1 TYPE CONSTRAINTS
+# TYPE CONSTRAINTS
 
 This type library defines the following constraints.
 
-=head2 Parameterizable[ParentTypeConstraint, ConstrainingValueTypeConstraint]
+## Parameterizable[ParentTypeConstraint, ConstrainingValueTypeConstraint]
 
 Create a subtype of ParentTypeConstraint with a dependency on a value that can
 pass the ConstrainingValueTypeConstraint. If ConstrainingValueTypeConstraint is empty
-we default to the 'Any' type constraint (see L<Moose::Util::TypeConstraints>).
+we default to the 'Any' type constraint (see [Moose::Util::TypeConstraints](http://search.cpan.org/perldoc?Moose::Util::TypeConstraints)).
 This is useful if you are creating some base Parameterizable type constraints
 that you intend to sub class.
 
-=cut
-
-Moose::Util::TypeConstraints::get_type_constraint_registry->add_type_constraint(
-    MooseX::Meta::TypeConstraint::Parameterizable->new(
-        name => 'MooseX::Types::Parameterizable::Parameterizable',
-        parent => find_type_constraint('Any'),
-        constraint => sub {1},
-    )
-);
-
-=head1 SEE ALSO
+# SEE ALSO
 
 The following modules or resources may be of interest.
 
-L<Moose>, L<Moose::Meta::TypeConstraint>, L<MooseX::Types>
+[Moose](http://search.cpan.org/perldoc?Moose), [Moose::Meta::TypeConstraint](http://search.cpan.org/perldoc?Moose::Meta::TypeConstraint), [MooseX::Types](http://search.cpan.org/perldoc?MooseX::Types)
 
-=head1 AUTHOR
+# AUTHOR
 
-John Napiorkowski, C<< <jjnapiork@cpan.org> >>
+John Napiorkowski, `<jjnapiork@cpan.org>`
 
-=head1 COPYRIGHT & LICENSE
+# COPYRIGHT & LICENSE
 
 This program is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.
-
-=cut
-
-1;
