@@ -16,9 +16,6 @@ inc/Module/Install/Repository.pm
 inc/Module/Install/Win32.pm
 inc/Module/Install/WriteAll.pm
 inc/Pod/Markdown.pm
-lib/.DS_Store
-lib/MooseX/.DS_Store
-lib/MooseX/Meta/.DS_Store
 lib/MooseX/Meta/TypeCoercion/Parameterizable.pm
 lib/MooseX/Meta/TypeConstraint/Parameterizable.pm
 lib/MooseX/Types/Parameterizable.pm
@@ -36,3 +33,4 @@ t/05-pod-examples.t
 t/06-anonymous.t
 t/07-no-message.t
 t/08-custom-messages.t
+t/09-coercions-bug.t
